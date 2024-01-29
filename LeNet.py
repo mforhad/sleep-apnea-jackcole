@@ -6,11 +6,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from keras.callbacks import LearningRateScheduler
-from keras.layers import Conv1D, Dense, Dropout, Flatten, MaxPooling1D
-from keras.models import Input, Model
+from keras.layers import Input, Conv1D, Dense, Dropout, Flatten, MaxPooling1D
+# from keras.models import Model
 from keras.regularizers import l2
 from scipy.interpolate import splev, splrep
 import pandas as pd
+
+import tensorflow as tf
+from keras.models import Model, Sequential
+from keras.utils import plot_model
+
 
 base_dir = "dataset"
 
@@ -33,8 +38,8 @@ def load_data():
     groups_train = apnea_ecg["groups_train"]
     for i in range(len(o_train)):
         (rri_tm, rri_signal), (ampl_tm, ampl_siganl) = o_train[i]
-		# Curve interpolation
-        rri_interp_signal = splev(tm, splrep(rri_tm, scaler(rri_signal), k=3), ext=1) 
+        # Curve interpolation
+        rri_interp_signal = splev(tm, splrep(rri_tm, scaler(rri_signal), k=3), ext=1)
         ampl_interp_signal = splev(tm, splrep(ampl_tm, scaler(ampl_siganl), k=3), ext=1)
         x_train.append([rri_interp_signal, ampl_interp_signal])
     x_train = np.array(x_train, dtype="float32").transpose((0, 2, 1)) # convert to numpy format
@@ -45,7 +50,7 @@ def load_data():
     groups_test = apnea_ecg["groups_test"]
     for i in range(len(o_test)):
         (rri_tm, rri_signal), (ampl_tm, ampl_siganl) = o_test[i]
-		# Curve interpolation
+        # Curve interpolation
         rri_interp_signal = splev(tm, splrep(rri_tm, scaler(rri_signal), k=3), ext=1)
         ampl_interp_signal = splev(tm, splrep(ampl_tm, scaler(ampl_siganl), k=3), ext=1)
         x_test.append([rri_interp_signal, ampl_interp_signal])
@@ -56,22 +61,22 @@ def load_data():
 
 
 def create_model(input_shape, weight=1e-3):
-	"""Create a Modified LeNet-5 model"""
+    """Create a Modified LeNet-5 model"""
     inputs = Input(shape=input_shape)
 
-	# Conv1
+    # Conv1
     x = Conv1D(32, kernel_size=5, strides=2, padding="valid", activation="relu", kernel_initializer="he_normal",
                kernel_regularizer=l2(weight), bias_regularizer=l2(weight))(inputs)
     x = MaxPooling1D(pool_size=3)(x)
 
-	# Conv3
+    # Conv3
     x = Conv1D(64, kernel_size=5, strides=2, padding="valid", activation="relu", kernel_initializer="he_normal",
                kernel_regularizer=l2(1e-3), bias_regularizer=l2(weight))(x)
     x = MaxPooling1D(pool_size=3)(x)
 
     x = Dropout(0.8)(x) # Avoid overfitting
 
-	# FC6
+    # FC6
     x = Flatten()(x)
     x = Dense(32, activation="relu")(x)
     outputs = Dense(2, activation="softmax")(x)
@@ -89,11 +94,15 @@ def lr_schedule(epoch, lr):
 
 
 def plot(history):
-	"""Plot performance curve"""
+    """Plot performance curve"""
+    # Check for 'accuracy' and 'val_accuracy', or 'acc' and 'val_acc'
+    acc_key = 'accuracy' if 'accuracy' in history else 'acc'
+    val_acc_key = 'val_accuracy' if 'val_accuracy' in history else 'val_acc'
+
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(history["loss"], "r-", history["val_loss"], "b-", linewidth=0.5)
     axes[0].set_title("Loss")
-    axes[1].plot(history["acc"], "r-", history["val_acc"], "b-", linewidth=0.5)
+    axes[1].plot(history[acc_key], "r-", history[val_acc_key], "b-", linewidth=0.5)
     axes[1].set_title("Accuracy")
     fig.tight_layout()
     fig.show()
@@ -115,11 +124,20 @@ if __name__ == "__main__":
 
     plot_model(model, "model.png") # Plot model
 
-    model = keras.utils.multi_gpu_model(model, gpus=2) # Multi-gpu acceleration (optional)
+    # model = keras.utils.multi_gpu_model(model, gpus=2) # Multi-gpu acceleration (optional)
+    # Check if multiple GPUs are available
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        model = keras.utils.multi_gpu_model(model, gpus=2) # Multi-gpu acceleration (optional)
+        print('Number of GPUs available: {}'.format(len(gpus)))
+        print('Using MirroredStrategy for multi-GPU training.')
+    else:
+        print('No GPUs available, using OneDeviceStrategy for single-GPU or CPU training.')
+
     model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=['accuracy'])
 
     lr_scheduler = LearningRateScheduler(lr_schedule) # Dynamic adjustment learning rate
-    history = model.fit(x_train, y_train, batch_size=128, epochs=100, validation_data=(x_test, y_test),
+    history = model.fit(x_train, y_train, batch_size=128, epochs=20, validation_data=(x_test, y_test),
                         callbacks=[lr_scheduler])
     model.save(os.path.join("models", "model.final.h5")) # Save training model
 

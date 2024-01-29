@@ -8,7 +8,8 @@ import os
 import wfdb
 from biosppy.signals.ecg import correct_rpeaks, hamilton_segmenter
 from scipy.signal import medfilt
-from sklearn.utils import cpu_count
+# from sklearn.utils import cpu_count
+from multiprocessing import cpu_count
 from tqdm import tqdm
 
 # PhysioNet Apnea-ECG dataset
