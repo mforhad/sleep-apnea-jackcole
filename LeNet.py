@@ -106,6 +106,7 @@ def plot(history):
     axes[1].set_title("Accuracy")
     fig.tight_layout()
     fig.show()
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=['accuracy'])
 
     lr_scheduler = LearningRateScheduler(lr_schedule) # Dynamic adjustment learning rate
-    history = model.fit(x_train, y_train, batch_size=128, epochs=20, validation_data=(x_test, y_test),
+    history = model.fit(x_train, y_train, batch_size=128, epochs=5, validation_data=(x_test, y_test),
                         callbacks=[lr_scheduler])
     model.save(os.path.join("models", "model.final.h5")) # Save training model
 

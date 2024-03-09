@@ -1,0 +1,9 @@
+tensorflow
+numpy
+matplotlib
+pandas
+scipy
+biosppy
+wfdb
+tqdm
+pydot

@@ -88,7 +88,7 @@ if __name__ == "__main__":
     print()
 
     answers = {}
-    with open(os.path.join(base_dir, "event-2-answers"), "r") as f:
+    with open(os.path.join(base_dir, "event-2-answers.txt"), "r") as f:
         for answer in f.read().split("\n\n"):
             answers[answer[:3]] = list("".join(answer.split()[2::2]))
 
